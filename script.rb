@@ -7,7 +7,7 @@ class DatabaseOperation
 
   def connect(username:, password:)
     @client = Mysql2::Client.new(
-      host: 'localhost',
+      host: host,
       username: username,
       password: password,
       database: database
@@ -15,9 +15,7 @@ class DatabaseOperation
   end
 
   def add_colums
-    client.query(
-      "ALTER TABLE #{table_name} ADD COLUMN clean_name VARCHAR(50), ADD COLUMN sentence VARCHAR(150);"
-    )
+    client.query("ALTER TABLE #{table_name} ADD COLUMN clean_name VARCHAR(50), ADD COLUMN sentence VARCHAR(150);")
   end
 
   def condidate_names
@@ -25,25 +23,32 @@ class DatabaseOperation
   end
 
   def save_results(hash:)
-    p hash[:sentence]
+    return if hash[:clean_name].nil?
 
     client.query(
       "UPDATE #{table_name} SET
-      clean_name = '#{hash[:clean_name]}',
-      sentence = '#{hash[:sentence]}'
+      clean_name = '#{escape_string(hash[:clean_name])}',
+      sentence = '#{escape_string(hash[:sentence])}'
       WHERE id = #{hash[:id]};"
     )
   end
 
   private
 
+  def host
+    'db09'
+  end
+
   def database
     'applicant_tests'
-    'test'
   end
 
   def table_name
     'hle_dev_test_dmitry_koropenko'
+  end
+
+  def escape_string(string)
+    client.escape(string)
   end
 end
 
@@ -69,6 +74,8 @@ class NamesReformat
   def prepare_clear_names
     hash.each do |row|
       @name = row[:candidate_office_name]
+
+      next if @name.size.zero?
 
       step_1
       step_2
@@ -181,12 +188,8 @@ loop do
 
     puts 'Clear names completed'
 
-    names_format.hash.each { |row| p row }
-
   when /\Asave_clear_names\z/i
-    names_format.hash.each do |row|
-      database.save_results(hash: row)
-    end
+    names_format.hash.each { |row| database.save_results(hash: row) }
 
     puts 'Result saved'
 

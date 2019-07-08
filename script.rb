@@ -39,6 +39,7 @@ class DatabaseOperation
 
   def database
     'applicant_tests'
+    'test'
   end
 
   def table_name
@@ -72,6 +73,8 @@ class NamesReformat
       step_1
       step_2
       step_3
+      step_4
+      step_5
 
       row[:clean_name] = @name
       row[:sentence] = "The candidate is running for the #{@name} office."
@@ -92,7 +95,7 @@ class NamesReformat
 
     if REGIONS.include?(region) && splitted.last.split(' ').last.downcase == region
       splitted[0] = splitted.first.downcase.gsub(region, '')
-      @name = "#{splitted.pop} #{splitted.join(' and ').downcase}".strip.gsub(/\s+/, ' ')
+      @name = clean_string("#{splitted.pop} #{splitted.join(' and ').downcase}")
     end
   end
 
@@ -109,15 +112,28 @@ class NamesReformat
     second_part = second_part.split(' ')
     second_word = second_part.shift
 
-    @name = "#{first_part.join(' ')} #{second_word} #{first_word} #{second_part.join(' ')}".strip.gsub(/\s+/, ' ')
+    @name = clean_string("#{join_array(first_part)} #{second_word} #{first_word} #{join_array(second_part)}")
   end
 
   def step_4
-    splitted = @name.split(',')
+    return unless @name.include?(',')
 
-    first_part, second_part = splitted
+    first_part, second_part = @name.split(',')
+    @name = clean_string("#{first_part} (#{join_array(second_part)})")
+  end
 
-    @name = "#{first_part.join(' ')} (#{second_part.join(' ')})".strip.gsub(/\s+/, ' ')
+  def step_5
+    return unless @name.include?('.')
+
+    @name = @name.downcase.gsub('.', '')
+  end
+
+  def clean_string(string)
+    string.strip.gsub(/\s+/, ' ')
+  end
+
+  def join_array(object)
+    object.is_a?(Array) ? object.join(' ') : object
   end
 end
 
@@ -158,11 +174,14 @@ loop do
     names_format.init_hash(hash: condidate_names)
 
     puts "Candidate names count: #{condidate_names.size}"
+    condidate_names.each { |row| p row }
 
   when /\Aprepare_clear_names\z/i
     names_format.prepare_clear_names
 
     puts 'Clear names completed'
+
+    names_format.hash.each { |row| p row }
 
   when /\Asave_clear_names\z/i
     names_format.hash.each do |row|
